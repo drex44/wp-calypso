@@ -7,7 +7,6 @@ import { localize } from 'i18n-calypso';
 import PropTypes from 'prop-types';
 import React, { Component } from 'react';
 import { connect } from 'react-redux';
-import { get, debounce } from 'lodash';
 
 /**
  * Internal dependencies
@@ -18,15 +17,13 @@ import StepWrapper from 'signup/step-wrapper';
 import FormLabel from 'components/forms/form-label';
 import InfoPopover from 'components/info-popover';
 import FormFieldset from 'components/forms/form-fieldset';
-import SuggestionSearch from 'components/suggestion-search';
+import SiteVerticalsSuggestionSearch from 'components/site-verticals-suggestion-search';
 import { setSiteTopic } from 'state/signup/steps/site-topic/actions';
 import { getSignupStepsSiteTopic } from 'state/signup/steps/site-topic/selectors';
 import { getSiteType } from 'state/signup/steps/site-type/selectors';
 import { recordTracksEvent } from 'state/analytics/actions';
 import SignupActions from 'lib/signup/actions';
 import { getSiteTypePropertyValue } from 'lib/signup/site-type';
-import { getHttpData, requestHttpData } from 'state/data-layer/http-data';
-import { http } from 'state/data-layer/wpcom-http/actions';
 
 /**
  * Style dependencies
@@ -48,7 +45,6 @@ class SiteTopicStep extends Component {
 
 	constructor( props ) {
 		super( props );
-		this.setSuggestionsRef = React.createRef();
 		this.state = {
 			siteTopicValue: props.siteTopic || '',
 		};
@@ -61,31 +57,16 @@ class SiteTopicStep extends Component {
 	}
 
 	onSiteTopicChange = value => {
-		if ( value && value !== this.state.lastSearchValue && value.length === 3 ) {
-			this.props.requestVerticals( value );
-			this.setState( { lastSearchValue: value } );
-		}
 		this.setState( { siteTopicValue: value } );
 	};
 
 	onSubmit = event => {
 		event.preventDefault();
-		this.props.submitSiteTopic( this.trimmedSiteTopicValue() );
+		this.props.submitSiteTopic( this.state.siteTopicValue );
 	};
 
-	hideSuggestions = () => this.setState( { siteTopicValue: '' } );
-
-	handleSearch = siteTopicValue => this.setState( { siteTopicValue } );
-
-	handleKeyDown = event => this.suggestionsRef.current.handleKeyEvent( event );
-
-	trimmedSiteTopicValue = () => this.state.siteTopicValue.trim();
-
-	getSuggestions = () => this.props.verticals.map( vertical => vertical.vertical_name );
-
-	renderContent( topicLabel, placeholder ) {
+	renderContent( topicLabel ) {
 		const { translate } = this.props;
-		const currentSiteTopic = this.trimmedSiteTopicValue();
 
 		return (
 			<Card className="site-topic__content">
@@ -97,16 +78,13 @@ class SiteTopicStep extends Component {
 								{ translate( "We'll use this to personalize your site and experience." ) }
 							</InfoPopover>
 						</FormLabel>
-						<SuggestionSearch
-							id="siteTopic"
-							placeholder={ placeholder }
+						<SiteVerticalsSuggestionSearch
 							onChange={ this.onSiteTopicChange }
-							suggestions={ this.getSuggestions() }
-							value={ currentSiteTopic }
+							value={ this.state.siteTopicValue }
 						/>
 					</FormFieldset>
 					<div className="site-topic__submit-wrapper">
-						<Button type="submit" disabled={ ! currentSiteTopic } primary>
+						<Button type="submit" disabled={ ! this.state.siteTopicValue } primary>
 							{ translate( 'Continue' ) }
 						</Button>
 					</div>
@@ -121,24 +99,17 @@ class SiteTopicStep extends Component {
 		const headerText = getSiteTypePropertyValue( 'slug', siteType, 'siteTopicHeader' ) || '';
 		const topicLabel = getSiteTypePropertyValue( 'slug', siteType, 'siteTopicLabel' ) || '';
 		// once we have more granular copies per segments, these two should only be used for the default case.
-		const commonPlaceholder = translate( 'e.g. Fashion, travel, design, plumber, electrician' );
 		const commonSubHeaderText = translate( "Don't stress, you can change this later." );
 
 		return {
 			headerText,
 			commonSubHeaderText,
 			topicLabel,
-			commonPlaceholder,
 		};
 	}
 
 	render() {
-		const {
-			headerText,
-			commonSubHeaderText,
-			topicLabel,
-			commonPlaceholder,
-		} = this.getTextFromSiteType();
+		const { headerText, commonSubHeaderText, topicLabel } = this.getTextFromSiteType();
 
 		return (
 			<div>
@@ -151,32 +122,11 @@ class SiteTopicStep extends Component {
 					subHeaderText={ commonSubHeaderText }
 					fallbackSubHeaderText={ commonSubHeaderText }
 					signupProgress={ this.props.signupProgress }
-					stepContent={ this.renderContent( topicLabel, commonPlaceholder ) }
+					stepContent={ this.renderContent( topicLabel ) }
 				/>
 			</div>
 		);
 	}
-}
-
-const REQUEST_VERTICALS_REQUEST_ID = 'signup-site-topic-vertical-request-id';
-
-function requestVerticalsHttpData( searchTerm ) {
-	return requestHttpData(
-		REQUEST_VERTICALS_REQUEST_ID,
-		http( {
-			apiNamespace: 'wpcom/v2',
-			method: 'GET',
-			path: '/verticals',
-			query: {
-				search: searchTerm,
-				limit: 5,
-			},
-		} ),
-		{
-			fromApi: () => data => [ [ 'results', data ] ],
-			freshness: -Infinity,
-		}
-	);
 }
 
 const mapDispatchToProps = ( dispatch, ownProps ) => ( {
@@ -203,19 +153,14 @@ const mapDispatchToProps = ( dispatch, ownProps ) => ( {
 
 		goToNextStep( flowName );
 	},
-	requestVerticals: debounce( requestVerticalsHttpData, 500 ),
 } );
 
 export default localize(
 	connect(
-		state => {
-			const verticalsData = getHttpData( REQUEST_VERTICALS_REQUEST_ID );
-			return {
-				siteTopic: getSignupStepsSiteTopic( state ),
-				siteType: getSiteType( state ),
-				verticals: verticalsData.data || [],
-			};
-		},
+		state => ( {
+			siteTopic: getSignupStepsSiteTopic( state ),
+			siteType: getSiteType( state ),
+		} ),
 		mapDispatchToProps
 	)( SiteTopicStep )
 );
