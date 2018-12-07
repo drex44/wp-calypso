@@ -1776,7 +1776,7 @@ function recordOrderInGoogleAnalytics( cart, orderId ) {
 }
 
 /**
- * Records an order/sign_up in Google Ads
+ * Records an order/sign_up in Google Ads Gtag
  *
  * @param {Object} cart - cart as `CartValue` object
  * @param {Number} orderId - the order id
@@ -1809,7 +1809,7 @@ function recordOrderInGoogleAds(
 				transaction_id: orderId,
 			};
 			window.gtag( 'event', event_name, event_data );
-			window.ga( 'recordOrderInGoogleAds: Jetpack', event_name, event_data );
+			debug( 'recordOrderInGoogleAds: Jetpack', event_name, event_data );
 		}
 	}
 
@@ -1823,7 +1823,7 @@ function recordOrderInGoogleAds(
 				transaction_id: orderId,
 			};
 			window.gtag( 'event', event_name, event_data );
-			window.ga( 'recordOrderInGoogleAds: WPCom', event_name, event_data );
+			debug( 'recordOrderInGoogleAds: WPCom', event_name, event_data );
 		}
 	}
 }
