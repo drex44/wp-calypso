@@ -33,10 +33,11 @@ const isAdwordsEnabled = true;
 const isFacebookEnabled = true;
 const isBingEnabled = true;
 const isGeminiEnabled = true;
+const isWpcomGoogleAdsGtagEnabled = true;
+const isJetpackGoogleAdsGtagEnabled = true;
 const isDonutsGtagEnabled = true;
 const isQuantcastEnabled = true;
 const isTwitterEnabled = true;
-const isAolEnabled = true;
 const isExperianEnabled = true;
 const isLinkedinEnabled = true;
 const isOutbrainEnabled = true;
@@ -62,7 +63,7 @@ let lastFloodlightPageViewTime = 0;
  */
 const FACEBOOK_TRACKING_SCRIPT_URL = 'https://connect.facebook.net/en_US/fbevents.js',
 	GOOGLE_TRACKING_SCRIPT_URL = 'https://www.googleadservices.com/pagead/conversion_async.js',
-	DONUTS_GOOGLE_GTAG_SCRIPT_URL = 'https://www.googletagmanager.com/gtag/js?id=DC-8907854',
+	GOOGLE_GTAG_SCRIPT_URL = 'https://www.googletagmanager.com/gtag/js?id=',
 	BING_TRACKING_SCRIPT_URL = 'https://bat.bing.com/bat.js',
 	CRITEO_TRACKING_SCRIPT_URL = 'https://static.criteo.net/js/ld/ld.js',
 	ADWORDS_CONVERSION_ID = config( 'google_adwords_conversion_id' ),
@@ -73,11 +74,6 @@ const FACEBOOK_TRACKING_SCRIPT_URL = 'https://connect.facebook.net/en_US/fbevent
 		'https://sp.analytics.yahoo.com/spp.pl?a=10000&.yp=10014088&ec=wordpresspurchase',
 	YAHOO_GEMINI_AUDIENCE_BUILDING_PIXEL_URL =
 		'https://sp.analytics.yahoo.com/spp.pl?a=10000&.yp=10014088',
-	ONE_BY_AOL_CONVERSION_PIXEL_URL =
-		'https://secure.ace-tag.advertising.com/action/type=132958/bins=1/rich=0/Mnum=1516/',
-	ONE_BY_AOL_AUDIENCE_BUILDING_PIXEL_URL =
-		'https://secure.leadback.advertising.com/adcedge/lb' +
-		'?site=695501&betr=sslbet_1472760417=[+]ssprlb_1472760417[720]|sslbet_1472760452=[+]ssprlb_1472760452[8760]',
 	PANDORA_CONVERSION_PIXEL_URL =
 		'https://data.adxcel-ec2.com/pixel/' +
 		'?ad_log=referer&action=purchase&pixid=7efc5994-458b-494f-94b3-31862eee9e26',
@@ -110,6 +106,9 @@ const FACEBOOK_TRACKING_SCRIPT_URL = 'https://connect.facebook.net/en_US/fbevent
 		quoraPixelId: '420845cb70e444938cf0728887a74ca1',
 		outbrainAdvId: '00f0f5287433c2851cc0cb917c7ff0465e',
 		nanigansAppId: '653793',
+		donutsGtag: 'DC-8907854',
+		wpcomGoogleAdsGtag: 'AW-1067250390',
+		jetpackGoogleAdsGtag: 'AW-937115306',
 	},
 	// This name is something we created to store a session id for DCM Floodlight session tracking
 	DCM_FLOODLIGHT_SESSION_COOKIE_NAME = 'dcmsid',
@@ -131,8 +130,8 @@ const FACEBOOK_TRACKING_SCRIPT_URL = 'https://connect.facebook.net/en_US/fbevent
 
 if ( typeof window !== 'undefined' ) {
 	// Facebook
-	if ( isFacebookEnabled && ! window.fbq ) {
-		setUpFacebookGlobal();
+	if ( isFacebookEnabled ) {
+		setupFacebookGlobal();
 	}
 
 	// Bing
@@ -150,9 +149,24 @@ if ( typeof window !== 'undefined' ) {
 		window._qevents = [];
 	}
 
+	// Google Ads Gtag for wordpress.com
+	if ( isWpcomGoogleAdsGtagEnabled ) {
+		setupWpcomGoogleAdsGtag();
+	}
+
+	// Google Ads Gtag for Jetpack
+	if ( isJetpackGoogleAdsGtagEnabled ) {
+		setupJetpackGoogleAdsGtag();
+	}
+
+	// Donuts DCM
+	if ( isDonutsGtagEnabled ) {
+		setupDonutsGtag();
+	}
+
 	// Twitter
-	if ( isTwitterEnabled && ! window.twq ) {
-		setUpTwitterGlobal();
+	if ( isTwitterEnabled ) {
+		setupTwitterGlobal();
 	}
 
 	// Linkedin
@@ -161,7 +175,7 @@ if ( typeof window !== 'undefined' ) {
 	}
 
 	// Quora
-	if ( isQuoraEnabled && ! window.qp ) {
+	if ( isQuoraEnabled ) {
 		setupQuoraGlobal();
 	}
 
@@ -208,6 +222,10 @@ function initMediaWallah() {
  * This is a rework of the obfuscated tracking code provided by Quora.
  */
 function setupQuoraGlobal() {
+	if ( window.qp ) {
+		return;
+	}
+
 	const quoraPixel = ( window.qp = function() {
 		quoraPixel.qp
 			? quoraPixel.qp.apply( quoraPixel, arguments )
@@ -220,7 +238,11 @@ function setupQuoraGlobal() {
  * This sets up the globals that the Facebook event library expects.
  * More info here: https://www.facebook.com/business/help/952192354843755
  */
-function setUpFacebookGlobal() {
+function setupFacebookGlobal() {
+	if ( window.fbq ) {
+		return;
+	}
+
 	const facebookEvents = ( window.fbq = function() {
 		if ( facebookEvents.callMethod ) {
 			facebookEvents.callMethod.apply( facebookEvents, arguments );
@@ -253,7 +275,11 @@ function setUpFacebookGlobal() {
  * This sets up the global `twq` function that Twitter expects.
  * More info here: https://github.com/Automattic/wp-calypso/pull/10235
  */
-function setUpTwitterGlobal() {
+function setupTwitterGlobal() {
+	if ( window.twq ) {
+		return;
+	}
+
 	const twq = ( window.twq = function() {
 		twq.exe ? twq.exe.apply( twq, arguments ) : twq.queue.push( arguments );
 	} );
@@ -313,8 +339,15 @@ async function loadTrackingScripts( callback ) {
 		scripts.push( GOOGLE_TRACKING_SCRIPT_URL );
 	}
 
-	if ( isDonutsGtagEnabled ) {
-		scripts.push( DONUTS_GOOGLE_GTAG_SCRIPT_URL );
+	// The gtag script needs to be loaded with an ID in the URL so we search
+	// for the first available one.
+	const enabledGtags = [
+		isWpcomGoogleAdsGtagEnabled ? TRACKING_IDS.wpcomGoogleAdsGtag : null,
+		isJetpackGoogleAdsGtagEnabled ? TRACKING_IDS.jetpackGoogleAdsGtag : null,
+		isDonutsGtagEnabled ? TRACKING_IDS.donutsGtag : null,
+	].filter( id => null !== id );
+	if ( enabledGtags.length > 0 ) {
+		scripts.push( GOOGLE_GTAG_SCRIPT_URL + enabledGtags[ 0 ] );
 	}
 
 	if ( isBingEnabled ) {
@@ -374,10 +407,6 @@ async function loadTrackingScripts( callback ) {
 	// init Facebook
 	if ( isFacebookEnabled ) {
 		initFacebook();
-	}
-
-	if ( isDonutsGtagEnabled ) {
-		initDonutsGtag();
 	}
 
 	// init Bing
@@ -509,11 +538,6 @@ function only_retarget() {
 	// Yahoo Gemini
 	if ( isGeminiEnabled ) {
 		new Image().src = YAHOO_GEMINI_AUDIENCE_BUILDING_PIXEL_URL;
-	}
-
-	// One by AOL
-	if ( isAolEnabled ) {
-		new Image().src = ONE_BY_AOL_AUDIENCE_BUILDING_PIXEL_URL;
 	}
 
 	// Quora
@@ -758,12 +782,39 @@ export function recordOrder( cart, orderId ) {
 
 	// 1. Fire one tracking event that includes details about the entire order
 
+	const containsJetpackPlan = some( cart.products, productsValues.isJetpackPlan );
+	const containsNonJetpackProduct = some( cart.products, p => {
+		return ! productsValues.isJetpackPlan( p );
+	} );
+
+	// Sum the values of all Jetpack products
+	const jetpackCost = cart.products
+		.map( product => ( productsValues.isJetpackPlan( product ) ? product.cost : 0 ) )
+		.reduce( ( accumulator, cost ) => accumulator + cost );
+	// Compute non-Jetpack value by difference
+	const nonJetpackCost = cart.total_cost - jetpackCost;
+
 	recordOrderInCriteo( cart, orderId );
 	recordOrderInFloodlight( cart, orderId );
-	recordOrderInFacebook( cart, orderId );
+	recordOrderInFacebook( cart, orderId, containsJetpackPlan, containsNonJetpackProduct );
+	recordOrderInGoogleAds(
+		cart,
+		orderId,
+		containsJetpackPlan,
+		containsNonJetpackProduct,
+		jetpackCost,
+		nonJetpackCost
+	);
 	recordOrderInNanigans( cart, orderId );
 	recordOrderInDonutsGtag( cart, orderId );
-	recordOrderInBing( cart, orderId );
+	recordOrderInBing(
+		cart,
+		orderId,
+		containsJetpackPlan,
+		containsNonJetpackProduct,
+		jetpackCost,
+		nonJetpackCost
+	);
 
 	// This has to come before we add the items to the Google Analytics cart
 	recordOrderInGoogleAnalytics( cart, orderId );
@@ -789,10 +840,6 @@ export function recordOrder( cart, orderId ) {
 	if ( isGeminiEnabled && ! cart.is_signup ) {
 		new Image().src =
 			YAHOO_GEMINI_CONVERSION_PIXEL_URL + ( usdTotalCost !== null ? '&gv=' + usdTotalCost : '' );
-	}
-
-	if ( isAolEnabled && ! cart.is_signup ) {
-		new Image().src = ONE_BY_AOL_CONVERSION_PIXEL_URL;
 	}
 
 	if ( isPandoraEnabled && ! cart.is_signup ) {
@@ -922,20 +969,6 @@ function recordProduct( product, orderId ) {
 
 		if ( isSupportedCurrency( product.currency ) ) {
 			const costUSD = costToUSD( product.cost, product.currency );
-
-			// Bing: only record purchases here.
-			// We track signups in `recordOrderInBing()`.
-			if ( isBingEnabled && ! product.is_signup ) {
-				const bingParams = {
-					ec: 'purchase',
-					gv: costUSD,
-				};
-				if ( isJetpackPlan ) {
-					// NOTE: `el` must be included only for jetpack plans.
-					bingParams.el = 'jetpack';
-				}
-				window.uetq.push( bingParams );
-			}
 
 			// Quantcast
 			if ( isQuantcastEnabled && ! product.is_signup ) {
@@ -1078,9 +1111,11 @@ function recordOrderInDonutsGtag( cart, orderId ) {
  *
  * @param {Object} cart - cart as `CartValue` object
  * @param {Number} orderId - the order id
+ * @param {Boolean} containsJetpackPlan - whether the cart includes a Jetpack product
+ * @param {Boolean} containsNonJetpackProduct - whether the cart includes a non-Jetpack product
  * @returns {void}
  */
-function recordOrderInFacebook( cart, orderId ) {
+function recordOrderInFacebook( cart, orderId, containsJetpackPlan, containsNonJetpackProduct ) {
 	if ( ! isAdTrackingAllowed() || ! isFacebookEnabled ) {
 		return;
 	}
@@ -1097,11 +1132,6 @@ function recordOrderInFacebook( cart, orderId ) {
 		debug( 'recordOrderInFacebook: Skipping due to a 0-value cart.' );
 		return;
 	}
-
-	const containsJetpackPlan = some( cart.products, productsValues.isJetpackPlan );
-	const containsNonJetpackProduct = some( cart.products, p => {
-		return ! productsValues.isJetpackPlan( p );
-	} );
 
 	if ( containsJetpackPlan && containsNonJetpackProduct ) {
 		debug( 'recordOrderInFacebook: Record purchase containing Jetpack and non-Jetpack products' );
@@ -1161,24 +1191,25 @@ export function recordAliasInFloodlight() {
  *
  * @param {Object} cart - cart as `CartValue` object.
  * @param {Number} orderId - the order ID.
+ * @param {Boolean} containsJetpackPlan - whether the cart includes a Jetpack product
+ * @param {Boolean} containsNonJetpackProduct - whether the cart includes a non-Jetpack product
+ * @param {Number} jetpackCost - cost of Jetpack plan
+ * @param {Number} nonJetpackCost - cost of non-Jetpack product
  * @returns {void}
  */
-function recordOrderInBing( cart /*, orderId */ ) {
+function recordOrderInBing(
+	cart,
+	orderId,
+	containsJetpackPlan,
+	containsNonJetpackProduct,
+	jetpackCost,
+	nonJetpackCost
+) {
 	// NOTE: `orderId` is not used at this time, but it could be useful in the near future.
 
 	if ( ! isAdTrackingAllowed() || ! isBingEnabled ) {
 		return;
 	}
-
-	if ( ! cart.is_signup ) {
-		return; // We only track signups here for now.
-		// We already record each individual product purchase.
-	}
-
-	const containsJetpackPlan = some( cart.products, productsValues.isJetpackPlan );
-	const containsNonJetpackProduct = some( cart.products, p => {
-		return ! productsValues.isJetpackPlan( p );
-	} );
 
 	if ( containsJetpackPlan && containsNonJetpackProduct ) {
 		debug(
@@ -1196,15 +1227,31 @@ function recordOrderInBing( cart /*, orderId */ ) {
 		debug( 'recordOrderInBing: Record ' + ( cart.is_signup ? 'signup' : 'purchase' ) );
 	}
 
-	const bingParams = {
-		ec: cart.is_signup ? 'signup' : 'purchase',
-		gv: cart.total_cost,
-	};
-	if ( containsJetpackPlan ) {
-		// NOTE: `el` must be included only for jetpack plans.
-		bingParams.el = 'jetpack';
+	if ( ! isSupportedCurrency( cart.currency ) ) {
+		debug( 'recordOrderInBing: currency not supported, dropping pixel' );
+		return;
 	}
-	window.uetq.push( bingParams );
+
+	const jetpackCostUSD = costToUSD( jetpackCost, cart.currency );
+	const nonJetpackCostUSD = costToUSD( nonJetpackCost, cart.currency );
+
+	if ( containsNonJetpackProduct ) {
+		const bingParams = {
+			ec: cart.is_signup ? 'signup' : 'purchase',
+			gv: nonJetpackCostUSD,
+		};
+		window.uetq.push( bingParams );
+	}
+
+	if ( containsJetpackPlan ) {
+		const bingParams = {
+			ec: cart.is_signup ? 'signup' : 'purchase',
+			gv: jetpackCostUSD,
+			// NOTE: `el` must be included only for jetpack plans.
+			el: 'jetpack',
+		};
+		window.uetq.push( bingParams );
+	}
 }
 
 function recordSignupStartInDonutsGtag() {
@@ -1218,7 +1265,6 @@ function recordSignupStartInDonutsGtag() {
 }
 
 function recordParamsInDonutsGtag( event_type, send_to, order_summary = false ) {
-	initDonutsGtag();
 	const params = {
 		allow_custom_scripts: false,
 		u1: document.referrer,
@@ -1730,6 +1776,59 @@ function recordOrderInGoogleAnalytics( cart, orderId ) {
 }
 
 /**
+ * Records an order/sign_up in Google Ads
+ *
+ * @param {Object} cart - cart as `CartValue` object
+ * @param {Number} orderId - the order id
+ * @param {Boolean} containsJetpackPlan - whether the cart includes a Jetpack product
+ * @param {Boolean} containsNonJetpackProduct - whether the cart includes a non-Jetpack product
+ * @param {Number} jetpackCost - cost of Jetpack plan
+ * @param {Number} nonJetpackCost - cost of non-Jetpack product
+ * @returns {void}
+ */
+function recordOrderInGoogleAds(
+	cart,
+	orderId,
+	containsJetpackPlan,
+	containsNonJetpackProduct,
+	jetpackCost,
+	nonJetpackCost
+) {
+	if ( ! isAdTrackingAllowed() ) {
+		debug( 'recordOrderInGoogleAds: skipping as ad tracking is disallowed' );
+		return;
+	}
+
+	if ( isJetpackGoogleAdsGtagEnabled ) {
+		if ( containsJetpackPlan ) {
+			const event_name = cart.is_signup ? 'sign_up' : 'purchase';
+			const event_data = {
+				send_to: TRACKING_IDS.jetpackGoogleAdsGtag,
+				value: jetpackCost,
+				currency: cart.currency,
+				transaction_id: orderId,
+			};
+			window.gtag( 'event', event_name, event_data );
+			window.ga( 'recordOrderInGoogleAds: Jetpack', event_name, event_data );
+		}
+	}
+
+	if ( isWpcomGoogleAdsGtagEnabled ) {
+		if ( containsNonJetpackProduct ) {
+			const event_name = cart.is_signup ? 'sign_up' : 'purchase';
+			const event_data = {
+				send_to: TRACKING_IDS.wpcomGoogleAdsGtag,
+				value: nonJetpackCost,
+				currency: cart.currency,
+				transaction_id: orderId,
+			};
+			window.gtag( 'event', event_name, event_data );
+			window.ga( 'recordOrderInGoogleAds: WPCom', event_name, event_data );
+		}
+	}
+}
+
+/**
  * Returns the URL for Quantcast's Purchase Confirmation Tag
  *
  * @see https://www.quantcast.com/help/guides/using-the-quantcast-asynchronous-tag/
@@ -1770,7 +1869,7 @@ function isSupportedCurrency( currency ) {
 	return Object.keys( EXCHANGE_RATES ).indexOf( currency ) !== -1;
 }
 
-function initDonutsGtag() {
+function setupGtag() {
 	if ( window.dataLayer && window.gtag ) {
 		return;
 	}
@@ -1779,7 +1878,21 @@ function initDonutsGtag() {
 		window.dataLayer.push( arguments );
 	};
 	window.gtag( 'js', new Date() );
-	window.gtag( 'config', 'DC-8907854' );
+}
+
+function setupJetpackGoogleAdsGtag() {
+	setupGtag();
+	window.gtag( 'config', TRACKING_IDS.jetpackGoogleAdsGtag );
+}
+
+function setupWpcomGoogleAdsGtag() {
+	setupGtag();
+	window.gtag( 'config', TRACKING_IDS.wpcomGoogleAdsGtag );
+}
+
+function setupDonutsGtag() {
+	setupGtag();
+	window.gtag( 'config', TRACKING_IDS.donutsGtag );
 }
 
 /**
