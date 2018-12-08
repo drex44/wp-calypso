@@ -13,7 +13,7 @@ import PropTypes from 'prop-types';
  */
 import QuerySitePurchases from 'components/data/query-site-purchases';
 import { getSelectedSiteId } from 'state/ui/selectors';
-import { getPurchases } from 'state/purchases/selectors';
+import { getSitePurchases } from 'state/purchases/selectors';
 
 function RecentRenewalListItem( { link, domain, productName, expiryMoment, translate } ) {
 	return (
@@ -41,23 +41,26 @@ RecentRenewalListItem.propTypes = {
 };
 
 export function RecentRenewals( { purchases, siteId, translate } ) {
-	const recentRenewals = purchases.filter(
-		( { mostRecentRenewMoment, productName, expiryMoment } ) => {
-			const oldestMoment = i18n.moment().subtract( 30, 'days' );
-			return (
-				productName &&
-				expiryMoment &&
-				mostRecentRenewMoment &&
-				mostRecentRenewMoment.isAfter( oldestMoment )
-			);
-		}
-	);
+	const oldestMoment = i18n.moment().subtract( 30, 'days' );
+	const recentRenewals = purchases.filter( product => {
+		return (
+			product.siteId === siteId &&
+			product.subscriptionStatus === 'active' &&
+			product.isDomainRegistration &&
+			product.productName &&
+			product.expiryMoment &&
+			product.isRenewal &&
+			product.renewMoment &&
+			product.mostRecentRenewMoment &&
+			product.mostRecentRenewMoment.isAfter( oldestMoment )
+		);
+	} );
 	const productListItems = recentRenewals.map( product => {
-		const domain = product.includedDomain || product.meta || product.domain;
+		const domain = product.meta || product.domain;
 		const link = 'https://' + domain;
 		return (
 			<RecentRenewalListItem
-				key={ domain + product.productName }
+				key={ product.id }
 				link={ link }
 				domain={ domain }
 				productName={ product.productName }
@@ -84,9 +87,10 @@ RecentRenewals.propTypes = {
 };
 
 const mapStateToProps = state => {
+	const siteId = getSelectedSiteId( state );
 	return {
-		purchases: getPurchases( state ),
-		siteId: getSelectedSiteId( state ),
+		purchases: getSitePurchases( state, siteId ),
+		siteId,
 	};
 };
 
