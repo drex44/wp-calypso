@@ -46,17 +46,17 @@ export function RecentRenewals( { purchases, siteId, translate } ) {
 		return (
 			product.siteId === siteId &&
 			product.subscriptionStatus === 'active' &&
-			product.isDomainRegistration &&
 			product.productName &&
 			product.expiryMoment &&
-			product.isRenewal &&
 			product.renewMoment &&
 			product.mostRecentRenewMoment &&
 			product.mostRecentRenewMoment.isAfter( oldestMoment )
 		);
 	} );
 	const productListItems = recentRenewals.map( product => {
-		const domain = product.meta || product.domain;
+		const domain = product.isDomainRegistration
+			? product.meta || product.domain
+			: product.includedDomain || product.domain;
 		const link = 'https://' + domain;
 		return (
 			<RecentRenewalListItem
