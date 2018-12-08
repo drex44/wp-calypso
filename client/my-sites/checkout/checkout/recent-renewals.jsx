@@ -41,31 +41,31 @@ RecentRenewalListItem.propTypes = {
 };
 
 export function RecentRenewals( { purchases, siteId, translate } ) {
-	const recentRenewals = purchases
-		.filter( ( { mostRecentRenewMoment } ) => {
+	const recentRenewals = purchases.filter(
+		( { mostRecentRenewMoment, productName, expiryMoment } ) => {
 			const oldestMoment = i18n.moment().subtract( 30, 'days' );
-			return mostRecentRenewMoment && mostRecentRenewMoment.isAfter( oldestMoment );
-		} )
-		.filter( product => product.productName && product.expiryMoment )
-		.map( product => {
-			const domain = product.includedDomain || product.meta || product.domain;
-			return {
-				link: domain,
-				domain,
-				productName: product.productName,
-				expiryMoment: product.expiryMoment,
-			};
-		} );
-	const productListItems = recentRenewals.map( ( { link, domain, productName, expiryMoment } ) => (
-		<RecentRenewalListItem
-			key={ domain + productName }
-			link={ link }
-			domain={ domain }
-			productName={ productName }
-			expiryMoment={ expiryMoment }
-			translate={ translate }
-		/>
-	) );
+			return (
+				productName &&
+				expiryMoment &&
+				mostRecentRenewMoment &&
+				mostRecentRenewMoment.isAfter( oldestMoment )
+			);
+		}
+	);
+	const productListItems = recentRenewals.map( product => {
+		const domain = product.includedDomain || product.meta || product.domain;
+		const link = 'https://' + domain;
+		return (
+			<RecentRenewalListItem
+				key={ domain + product.productName }
+				link={ link }
+				domain={ domain }
+				productName={ product.productName }
+				expiryMoment={ product.expiryMoment }
+				translate={ translate }
+			/>
+		);
+	} );
 	const productList = productListItems.length ? (
 		<ul className="checkout__recent-renewals">{ productListItems }</ul>
 	) : null;
